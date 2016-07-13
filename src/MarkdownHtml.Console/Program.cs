@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using System.Text.RegularExpressions;
 using MarkdownSharp;
 
 namespace MarkdownHtml
@@ -25,6 +26,16 @@ namespace MarkdownHtml
                 return 2;
             }
 
+            var templateFile = Path.Combine(
+                Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location),
+                "template.html");
+
+            if (!File.Exists(templateFile))
+            {
+                WriteUsage($@"Could not find Template file at ""{templateFile}""");
+                return 3;
+            }
+
             var markdown = new Markdown(new MarkdownOptions
             {
                 AutoHyperlink = true,
@@ -35,10 +46,18 @@ namespace MarkdownHtml
                 StrictBoldItalic = false,
             });
             var sourceFileAllText = File.ReadAllText(sourceFile, Encoding.UTF8);
+            var documentTitle = Path.GetFileNameWithoutExtension(sourceFile);
+            var generator = $"markdown-html {GetAssemblyInformationalVersionValue()}";
+            var templateFileAllText = File.ReadAllText(templateFile, Encoding.UTF8);
             var transformedHtml = markdown.Transform(sourceFileAllText);
             var targetFile = Path.ChangeExtension(sourceFile, "html");
 
-            File.WriteAllText(targetFile, transformedHtml, Encoding.UTF8);
+            var combinedHtml = templateFileAllText;
+            combinedHtml = Regex.Replace(combinedHtml, "{{ generator }}", generator);
+            combinedHtml = Regex.Replace(combinedHtml, "{{ title }}", documentTitle);
+            combinedHtml = Regex.Replace(combinedHtml, "{{ content }}", transformedHtml);
+
+            File.WriteAllText(targetFile, combinedHtml, Encoding.UTF8);
             Console.WriteLine($@"Generated HTML file at ""{targetFile}""");
 
             return 0;
@@ -50,7 +69,7 @@ namespace MarkdownHtml
             Console.WriteLine($"  {errorMessage}");
             Console.WriteLine();
 
-            var version = Assembly.GetExecutingAssembly().GetCustomAttributes<AssemblyInformationalVersionAttribute>().Single().InformationalVersion;
+            var version = GetAssemblyInformationalVersionValue();
             Console.WriteLine("Version:");
             Console.WriteLine($"  {version}");
             Console.WriteLine();
@@ -59,6 +78,11 @@ namespace MarkdownHtml
             Console.WriteLine(@"  markdown-html ""path\to\file.md""");
             Console.WriteLine();
             Console.WriteLine(@"  Outputs the converted HTML file at ""path\to\file.html""");
+        }
+
+        static string GetAssemblyInformationalVersionValue()
+        {
+            return Assembly.GetExecutingAssembly().GetCustomAttributes<AssemblyInformationalVersionAttribute>().Single().InformationalVersion;
         }
     }
 }
