@@ -26,14 +26,25 @@ namespace MarkdownHtml
                 return 2;
             }
 
-            var templateFile = Path.Combine(
-                Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location),
+            var templateFileInSourceFileDirectory = Path.Combine(
+                Path.GetDirectoryName(sourceFile),
                 "template.html");
+            var templateFile = templateFileInSourceFileDirectory;
 
-            if (!File.Exists(templateFile))
+            if (!File.Exists(templateFileInSourceFileDirectory))
             {
-                WriteUsage($@"Could not find Template file at ""{templateFile}""");
-                return 3;
+                var templateFileInProgramDirectory = Path.Combine(
+                    Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location),
+                    "template.html");
+                templateFile = templateFileInProgramDirectory;
+
+                if (!File.Exists(templateFileInProgramDirectory))
+                {
+                    WriteUsage($@"Could not find Template file. Looked at the following paths:
+    - ""{templateFileInSourceFileDirectory}""
+    - ""{templateFileInProgramDirectory}""");
+                    return 3;
+                }
             }
 
             var markdown = new Markdown(new MarkdownOptions
